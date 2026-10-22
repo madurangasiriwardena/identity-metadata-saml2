@@ -32,7 +32,6 @@ import org.opensaml.saml.saml2.metadata.SingleLogoutService;
 import org.opensaml.saml.saml2.metadata.SingleSignOnService;
 import org.opensaml.xmlsec.signature.Signature;
 import org.opensaml.xmlsec.signature.support.SignatureException;
-import org.opensaml.xmlsec.signature.support.Signer;
 import org.w3c.dom.Document;
 import org.wso2.carbon.identity.application.common.model.FederatedAuthenticatorConfig;
 import org.wso2.carbon.identity.application.common.model.Property;
@@ -43,6 +42,7 @@ import org.wso2.carbon.identity.idp.metadata.saml2.CryptoProvider;
 import org.wso2.carbon.identity.idp.metadata.saml2.IDPMetadataConstant;
 import org.wso2.carbon.identity.idp.metadata.saml2.MetadataCryptoProvider;
 import org.wso2.carbon.identity.idp.metadata.saml2.util.BuilderUtil;
+import org.wso2.carbon.identity.saml.common.util.SAMLSignerUtils;
 import org.wso2.carbon.idp.mgt.MetadataException;
 
 import java.io.IOException;
@@ -149,7 +149,8 @@ public class DefaultIDPMetadataBuilder extends IDPMetadataBuilder {
         try {
             out.marshall(entityDescriptor, document);
             if (signature != null) {
-                Signer.signObject(signature);
+                // Supports keys held in an HSM; software keys are signed with Signer as before.
+                SAMLSignerUtils.signObject(signature);
             }
         } catch (MarshallingException e) {
             throw new MetadataException("Error while marshalling the descriptor.", e);
