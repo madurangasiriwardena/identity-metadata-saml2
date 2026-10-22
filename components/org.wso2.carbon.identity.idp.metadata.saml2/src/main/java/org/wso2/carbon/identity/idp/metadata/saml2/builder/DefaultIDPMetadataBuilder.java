@@ -32,6 +32,7 @@ import org.opensaml.saml.saml2.metadata.SingleLogoutService;
 import org.opensaml.saml.saml2.metadata.SingleSignOnService;
 import org.opensaml.xmlsec.signature.Signature;
 import org.opensaml.xmlsec.signature.support.SignatureException;
+import org.opensaml.xmlsec.signature.support.SignerProvider;
 import org.w3c.dom.Document;
 import org.wso2.carbon.identity.application.common.model.FederatedAuthenticatorConfig;
 import org.wso2.carbon.identity.application.common.model.Property;
@@ -146,9 +147,14 @@ public class DefaultIDPMetadataBuilder extends IDPMetadataBuilder {
             signature = ((MetadataCryptoProvider) cryptoProvider).getSignature(entityDescriptor);
         }
 
+        // OpenSAML finds its signer implementation with ServiceLoader, which uses the thread context class loader.
+        // In OSGi that loader must be the OpenSAML bundle's class loader, as in the other SAML signers.
+        Thread thread = Thread.currentThread();
+        ClassLoader originalClassLoader = thread.getContextClassLoader();
         try {
             out.marshall(entityDescriptor, document);
             if (signature != null) {
+                thread.setContextClassLoader(SignerProvider.class.getClassLoader());
                 // Supports keys held in an HSM; software keys are signed with Signer as before.
                 SAMLSignerUtils.signObject(signature);
             }
@@ -156,6 +162,8 @@ public class DefaultIDPMetadataBuilder extends IDPMetadataBuilder {
             throw new MetadataException("Error while marshalling the descriptor.", e);
         } catch (SignatureException e) {
             throw new MetadataException("Error while signing the descriptor.", e);
+        } finally {
+            thread.setContextClassLoader(originalClassLoader);
         }
 
         if (log.isDebugEnabled()) {
